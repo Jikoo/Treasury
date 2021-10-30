@@ -12,9 +12,9 @@
 
 package me.lokka30.treasury.api.economy.account;
 
+import me.lokka30.treasury.api.core.util.SimpleFuture;
 import me.lokka30.treasury.api.economy.currency.Currency;
 import me.lokka30.treasury.api.economy.response.EconomyException;
-import me.lokka30.treasury.api.economy.response.EconomySubscriber;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -44,20 +44,9 @@ public interface PlayerAccount extends Account {
      * @param currency of the balance being reset
      */
     @Override
-    default void resetBalance(@NotNull Currency currency, @NotNull EconomySubscriber<Double> subscription) {
+    default @NotNull SimpleFuture<Double, EconomyException> resetBalance(@NotNull Currency currency) {
         final double newBalance = currency.getStartingBalance(null);
-        setBalance(newBalance, currency, new EconomySubscriber<Double>() {
-                @Override
-                public void succeed(@NotNull Double value) {
-                    subscription.succeed(newBalance);
-                }
-
-                @Override
-                public void fail(@NotNull EconomyException exception) {
-                    subscription.fail(exception);
-                }
-            }
-        );
+        return setBalance(newBalance, currency).map(value -> newBalance);
     }
 
 }

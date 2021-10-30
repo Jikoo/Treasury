@@ -1,19 +1,19 @@
 package me.lokka30.treasury.plugin.command.treasury.subcommand.migrate;
 
+import me.lokka30.treasury.api.core.util.SimpleFuture;
 import me.lokka30.treasury.api.economy.EconomyProvider;
 import me.lokka30.treasury.api.economy.account.Account;
 import me.lokka30.treasury.api.economy.currency.Currency;
 import me.lokka30.treasury.api.economy.response.EconomyException;
-import me.lokka30.treasury.api.economy.response.EconomySubscriber;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 interface AccountMigrator<T extends Account> {
 
@@ -23,13 +23,13 @@ interface AccountMigrator<T extends Account> {
 
     @NotNull String getErrorLog(@NotNull UUID uuid, @NotNull Throwable throwable);
 
-    @NotNull BiConsumer<@NotNull EconomyProvider, @NotNull EconomySubscriber<Collection<UUID>>> requestAccountIds();
+    @NotNull Function<@NotNull EconomyProvider, @NotNull SimpleFuture<Collection<UUID>, EconomyException>> requestAccountIds();
 
-    @NotNull TriConsumer<@NotNull EconomyProvider, @NotNull UUID, @NotNull EconomySubscriber<T>> requestAccount();
+    @NotNull BiFunction<@NotNull EconomyProvider, @NotNull UUID, @NotNull SimpleFuture<T, EconomyException>> requestAccount();
 
-    @NotNull TriConsumer<@NotNull EconomyProvider, @NotNull UUID, @NotNull EconomySubscriber<Boolean>> checkAccountExistence();
+    @NotNull BiFunction<@NotNull EconomyProvider, @NotNull UUID, @NotNull SimpleFuture<Boolean, EconomyException>> checkAccountExistence();
 
-    @NotNull TriConsumer<@NotNull EconomyProvider, @NotNull UUID, @NotNull EconomySubscriber<T>> createAccount();
+    @NotNull BiFunction<@NotNull EconomyProvider, @NotNull UUID, @NotNull SimpleFuture<T, EconomyException>> createAccount();
 
     default void migrate(
             @NotNull Phaser phaser,
@@ -39,42 +39,31 @@ interface AccountMigrator<T extends Account> {
         for (Map.Entry<Currency, Currency> fromToCurrency : migration.migratedCurrencies().entrySet()) {
             Currency fromCurrency = fromToCurrency.getKey();
             Currency toCurrency = fromToCurrency.getValue();
-            CompletableFuture<Double> balanceFuture = new CompletableFuture<>();
 
-            fromAccount.setBalance(0.0D, fromCurrency, new PhasedSubscriber<Double>(phaser) {
-                @Override
-                public void phaseAccept(@NotNull Double balance) {
-                    balanceFuture.complete(balance);
-                }
-
-                @Override
-                public void phaseFail(@NotNull EconomyException exception) {
-                    migration.debug(() -> getErrorLog(fromAccount.getUniqueId(), exception));
-                    balanceFuture.completeExceptionally(exception);
-                }
-            });
-
-            balanceFuture.thenAccept(balance -> {
-                if (balance == 0) {
-                    return;
-                }
-                EconomySubscriber<Double> subscriber = new FailureConsumer<>(phaser, exception -> {
-                    migration.debug(() -> getErrorLog(fromAccount.getUniqueId(), exception));
-                    fromAccount.setBalance(balance, fromCurrency, new FailureConsumer<>(phaser, exception1 -> {
-                        migration.debug(() -> getErrorLog(fromAccount.getUniqueId(), exception1));
-                        migration.debug(() -> String.format(
-                                "Failed to recover from an issue transferring %s %s from %s, currency will be deleted!",
-                                balance,
-                                fromCurrency.getCurrencyName(),
-                                fromAccount.getUniqueId()));
-                    }));
-                });
-                if (balance < 0) {
-                    toAccount.withdrawBalance(balance, toCurrency, subscriber);
-                } else {
-                    toAccount.depositBalance(balance, toCurrency, subscriber);
-                }
-            });
+            phaser.register();
+            fromAccount.setBalance(0.0D, fromCurrency)
+                    .handleError(exception -> {
+                        phaser.arriveAndDeregister();
+                        migration.debug(() -> getErrorLog(fromAccount.getUniqueId(), exception));
+                    })
+                    .flatMap(balance -> {
+                        SimpleFuture<Double, EconomyException> balanceFuture;
+                        if (balance < 0) {
+                            balanceFuture = toAccount.withdrawBalance(balance, toCurrency);
+                        } else {
+                            balanceFuture = toAccount.depositBalance(balance, toCurrency);
+                        }
+                        balanceFuture.handleError(exception -> {
+                            phaser.arriveAndDeregister();
+                            migration.debug(() -> getErrorLog(fromAccount.getUniqueId(), exception));
+                            migration.debug(() -> String.format(
+                                    "Failed to recover from an issue transferring %s %s from %s, currency will be deleted!",
+                                    balance,
+                                    fromCurrency.getCurrencyName(),
+                                    fromAccount.getUniqueId()));
+                        });
+                        return balanceFuture;
+                    }).handle(value -> phaser.arriveAndDeregister());
         }
     }
 

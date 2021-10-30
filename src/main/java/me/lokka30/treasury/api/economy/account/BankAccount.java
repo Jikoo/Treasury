@@ -12,7 +12,8 @@
 
 package me.lokka30.treasury.api.economy.account;
 
-import me.lokka30.treasury.api.economy.response.EconomySubscriber;
+import me.lokka30.treasury.api.core.util.SimpleFuture;
+import me.lokka30.treasury.api.economy.response.EconomyException;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
@@ -39,7 +40,7 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting the members
      * @since v1.0.0
      */
-    void requestBankMembersIds(@NotNull EconomySubscriber<Collection<UUID>> subscription);
+    @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestBankMembersIds();
 
     /**
      * Request a listing of all owners of the bank.
@@ -48,7 +49,7 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting the owners
      * @since v1.0.0
      */
-    void requestBankOwnersIds(@NotNull EconomySubscriber<Collection<UUID>> subscription);
+    @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestBankOwnersIds();
 
     /**
      * Check if the specified user is a member of the bank.
@@ -58,7 +59,7 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting whether the user is a member
      * @since v1.0.0
      */
-    void isBankMember(@NotNull UUID memberId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> isBankMember(@NotNull UUID memberId);
 
     /**
      * Check if the specified user is an owner of the bank.
@@ -68,7 +69,7 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting whether the user is an owner
      * @since v1.0.0
      */
-    void isBankOwner(@NotNull UUID ownerId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> isBankOwner(@NotNull UUID ownerId);
 
     /**
      * Make a user a member of the bank.
@@ -78,7 +79,7 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting whether the member was added
      * @since v1.0.0
      */
-    void addBankMember(@NotNull UUID memberId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> addBankMember(@NotNull UUID memberId);
 
     /**
      * Make a user an owner of the bank.
@@ -88,7 +89,7 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting whether the owner was added
      * @since v1.0.0
      */
-    void addBankOwner(@NotNull UUID ownerId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> addBankOwner(@NotNull UUID ownerId);
 
     /**
      * Remove a member of the bank.
@@ -98,7 +99,7 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting whether the member was removed
      * @since v1.0.0
      */
-    void removeBankMember(@NotNull UUID memberId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> removeBankMember(@NotNull UUID memberId);
 
     /**
      * Remove an owner of the bank.
@@ -108,5 +109,5 @@ public interface BankAccount extends Account {
      * @param subscription the {@link EconomySubscriber} accepting whether the owner was removed
      * @since v1.0.0
      */
-    void removeBankOwner(@NotNull UUID ownerId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> removeBankOwner(@NotNull UUID ownerId);
 }

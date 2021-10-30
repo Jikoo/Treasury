@@ -16,7 +16,6 @@ import me.lokka30.microlib.messaging.MultiMessage;
 import me.lokka30.treasury.api.economy.EconomyProvider;
 import me.lokka30.treasury.api.economy.account.Account;
 import me.lokka30.treasury.api.economy.currency.Currency;
-import me.lokka30.treasury.api.economy.response.EconomyException;
 import me.lokka30.treasury.plugin.Treasury;
 import me.lokka30.treasury.plugin.command.Subcommand;
 import me.lokka30.treasury.plugin.debug.DebugCategory;
@@ -195,66 +194,60 @@ public class MigrateSubcommand implements Subcommand {
     }
 
     private Phaser establishCurrencies(@NotNull MigrationData migration) {
-        CompletableFuture<Collection<UUID>> fromCurrencyIdsFuture = new CompletableFuture<>();
+        // Initialize phaser with 2 parties to be used to block for currency mapping completion.
+        Phaser phaser = new Phaser(2);
 
-        // Initialize phaser with a single party: currency mapping completion.
-        Phaser phaser = new Phaser(1);
+        migration.from()
+                .requestCurrencyIds()
+                .handleError(exception -> {
+                    phaser.arriveAndDeregister();
+                    migration.debug(() -> "Failed to fetch currencies from economy '&b" + migration.from().getProvider().getName() + "&7'.");
+                })
+                .handle(fromCurrencyIds -> {
+                    fromCurrencyIds.forEach(fromCurrencyId -> {
 
-        migration.from().requestCurrencyIds(new PhasedFutureSubscriber<>(phaser, fromCurrencyIdsFuture));
-
-        fromCurrencyIdsFuture.thenAccept(fromCurrencyIds -> {
-            for (UUID fromCurrencyId : fromCurrencyIds) {
-
-                // Fetch from currency.
-                CompletableFuture<Currency> fromCurrencyFuture = new CompletableFuture<>();
-                migration.from().requestCurrency(fromCurrencyId, new PhasedFutureSubscriber<>(phaser, fromCurrencyFuture));
-                fromCurrencyFuture.whenComplete(((currency, throwable) -> {
-                    if (throwable != null) {
-                        migration.debug(() -> "Unable to locate reported currency with ID '&b" + fromCurrencyId + "&7'.");
-                    }
-                }));
-
-                fromCurrencyFuture.thenAccept(fromCurrency -> {
-
-                    // Fetch to currency.
-                    CompletableFuture<Currency> toCurrencyFuture = new CompletableFuture<>();
-                    migration.to().requestCurrency(fromCurrencyId, new PhasedFutureSubscriber<>(phaser, toCurrencyFuture));
-                    toCurrencyFuture.whenComplete(((toCurrency, throwable) -> {
-                        if (toCurrency == null) {
-                            // Currency not found.
-                            migration.nonMigratedCurrencies().add(fromCurrency.getCurrencyName());
-                            migration.debug(() -> "Currency of ID '&b" + fromCurrency.getCurrencyName() + "&7' will not be migrated.");
-                        } else {
-                            // Currency located, map.
-                            migration.migratedCurrencies().put(fromCurrency, toCurrency);
-                            migration.debug(() -> "Currency of ID '&b" + fromCurrency.getCurrencyName() + "&7' will be migrated.");
-                        }
-                    }));
+                        // Fetch from currency.
+                        phaser.register();
+                        migration.from().requestCurrency(fromCurrencyId)
+                                .handleError(exception -> {
+                                    // Currency not found.
+                                    migration.debug(() -> "Unable to locate reported currency with ID '&b" + fromCurrencyId + "&7'.");
+                                    phaser.arriveAndDeregister();
+                                })
+                                .handle(fromCurrency -> migration.to().requestCurrency(fromCurrency.getCurrencyName())
+                                        .handleError(exception -> {
+                                            // Currency not found.
+                                            migration.nonMigratedCurrencies().add(fromCurrency.getCurrencyName());
+                                            migration.debug(() -> "Currency of ID '&b" + fromCurrency.getCurrencyName() + "&7' will not be migrated.");
+                                            phaser.arriveAndDeregister();
+                                        })
+                                        .handle(toCurrency -> {
+                                            // Currency located, map.
+                                            migration.migratedCurrencies().put(fromCurrency, toCurrency);
+                                            migration.debug(() -> "Currency of ID '&b" + fromCurrency.getCurrencyName() + "&7' will be migrated.");
+                                            phaser.arriveAndDeregister();
+                                        }));
+                    });
+                    phaser.arriveAndDeregister();
                 });
-            }
-            phaser.arriveAndDeregister();
-        });
 
         return phaser;
     }
 
     private <T extends Account> Phaser migrateAccounts(@NotNull MigrationData migration, @NotNull AccountMigrator<T> migrator) {
-        // Initialize phaser with a single party: migration completion.
-        Phaser phaser = new Phaser(1);
+        // Initialize phaser with 2 parties to be used to block for migration completion.
+        Phaser phaser = new Phaser(2);
 
-        migrator.requestAccountIds().accept(migration.from(), new PhasedSubscriber<Collection<UUID>>(phaser) {
-            @Override
-            public void phaseAccept(@NotNull Collection<UUID> uuids) {
-                for (UUID uuid : uuids) {
-                    migrateAccount(phaser, uuid, migration, migrator);
-                }
-            }
-
-            @Override
-            public void phaseFail(@NotNull EconomyException exception) {
-                migration.debug(() -> migrator.getBulkFailLog(exception));
-            }
-        });
+        migrator.requestAccountIds()
+                .apply(migration.from())
+                .handleError(exception -> {
+                    migration.debug(() -> migrator.getBulkFailLog(exception));
+                    phaser.arriveAndDeregister();
+                })
+                .handle(uuids -> {
+                    uuids.forEach(uuid -> migrateAccount(phaser, uuid, migration, migrator));
+                    phaser.arriveAndDeregister();
+                });
 
         return phaser;
     }
@@ -276,26 +269,39 @@ public class MigrateSubcommand implements Subcommand {
         };
 
         CompletableFuture<T> fromAccountFuture = new CompletableFuture<>();
-        migrator.requestAccount().accept(migration.from(), uuid, new PhasedFutureSubscriber<>(phaser, fromAccountFuture));
+        phaser.register();
+        migrator.requestAccount()
+                .apply(migration.from(), uuid)
+                .handleError(exception -> {
+                    fromAccountFuture.completeExceptionally(exception);
+                    phaser.arriveAndDeregister();
+                })
+                .handle(fromAccount -> {
+                    fromAccountFuture.complete(fromAccount);
+                    phaser.arriveAndDeregister();
+                });
         fromAccountFuture.whenComplete(failureConsumer);
 
         CompletableFuture<T> toAccountFuture = new CompletableFuture<>();
-        migrator.checkAccountExistence().accept(migration.to(), uuid, new PhasedSubscriber<Boolean>(phaser) {
-            @Override
-            public void phaseAccept(@NotNull Boolean hasAccount) {
-                PhasedFutureSubscriber<T> subscription = new PhasedFutureSubscriber<>(phaser, toAccountFuture);
-                if (hasAccount) {
-                    migrator.requestAccount().accept(migration.to(), uuid, subscription);
-                } else {
-                    migrator.createAccount().accept(migration.to(), uuid, subscription);
-                }
-            }
-
-            @Override
-            public void phaseFail(@NotNull EconomyException exception) {
-                toAccountFuture.completeExceptionally(exception);
-            }
-        });
+        migrator.checkAccountExistence()
+                .apply(migration.to(), uuid)
+                .handleError(exception -> {
+                    toAccountFuture.completeExceptionally(exception);
+                    phaser.arriveAndDeregister();
+                })
+                .handle(hasAccount -> {
+                    if (hasAccount) {
+                        migrator.requestAccount().apply(migration.to(), uuid)
+                                .handleError(exception -> {
+                                    toAccountFuture.completeExceptionally(exception);
+                                    phaser.arriveAndDeregister();
+                                })
+                                .handle(account -> {
+                                    toAccountFuture.complete(account);
+                                    phaser.arriveAndDeregister();
+                                });
+                    }
+                });
         toAccountFuture.whenComplete(failureConsumer);
 
         fromAccountFuture.thenAcceptBoth(toAccountFuture, (fromAccount, toAccount) -> {

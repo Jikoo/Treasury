@@ -1,12 +1,12 @@
 package me.lokka30.treasury.plugin.command.treasury.subcommand.migrate;
 
+import me.lokka30.treasury.api.core.util.SimpleFuture;
 import me.lokka30.treasury.api.economy.EconomyProvider;
 import me.lokka30.treasury.api.economy.account.BankAccount;
 import me.lokka30.treasury.api.economy.account.PlayerAccount;
 import me.lokka30.treasury.api.economy.currency.Currency;
 import me.lokka30.treasury.api.economy.misc.EconomyAPIVersion;
 import me.lokka30.treasury.api.economy.response.EconomyException;
-import me.lokka30.treasury.api.economy.response.EconomySubscriber;
 import me.lokka30.treasury.api.economy.response.FailureReason;
 import me.lokka30.treasury.plugin.Treasury;
 import org.bukkit.plugin.Plugin;
@@ -18,7 +18,7 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * A dummy {@link EconomyProvider} used to prevent transactions with
+ * A dummy {@link EconomyProvider} used to prevent transactions during economy migration.
  *
  * @since v1.0.0
  */
@@ -72,67 +72,63 @@ class MigrationEconomy implements EconomyProvider {
     }
 
     @Override
-    public void hasPlayerAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<Boolean> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Boolean, EconomyException> hasPlayerAccount(@NotNull UUID accountId) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestPlayerAccount(
-            @NotNull UUID accountId,
-            @NotNull EconomySubscriber<PlayerAccount> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<PlayerAccount, EconomyException> requestPlayerAccount(@NotNull UUID accountId) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void createPlayerAccount(
-            @NotNull UUID accountId,
-            @NotNull EconomySubscriber<PlayerAccount> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<PlayerAccount, EconomyException> createPlayerAccount(@NotNull UUID accountId) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestPlayerAccountIds(@NotNull EconomySubscriber<Collection<UUID>> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestPlayerAccountIds() {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void hasBankAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<Boolean> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Boolean, EconomyException> hasBankAccount(@NotNull UUID accountId) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestBankAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<BankAccount> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<BankAccount, EconomyException> requestBankAccount(@NotNull UUID accountId) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void createBankAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<BankAccount> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<BankAccount, EconomyException> createBankAccount(@NotNull UUID accountId) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestBankAccountIds(@NotNull EconomySubscriber<Collection<UUID>> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestBankAccountIds() {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestCurrencyIds(@NotNull EconomySubscriber<Collection<UUID>> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestCurrencyIds() {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestCurrencyNames(@NotNull EconomySubscriber<Collection<String>> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Collection<String>, EconomyException> requestCurrencyNames() {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestCurrency(@NotNull UUID currencyId, @NotNull EconomySubscriber<Currency> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Currency, EconomyException> requestCurrency(@NotNull UUID currencyId) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override
-    public void requestCurrency(@NotNull String currencyName, @NotNull EconomySubscriber<Currency> subscription) {
-        subscription.fail(migrationException);
+    public @NotNull SimpleFuture<Currency, EconomyException> requestCurrency(@NotNull String currencyName) {
+        return new FailureFuture<>(migrationException);
     }
 
     @Override

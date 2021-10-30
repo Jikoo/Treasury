@@ -12,11 +12,12 @@
 
 package me.lokka30.treasury.api.economy;
 
+import me.lokka30.treasury.api.core.util.SimpleFuture;
 import me.lokka30.treasury.api.economy.account.BankAccount;
 import me.lokka30.treasury.api.economy.account.PlayerAccount;
 import me.lokka30.treasury.api.economy.currency.Currency;
 import me.lokka30.treasury.api.economy.misc.EconomyAPIVersion;
-import me.lokka30.treasury.api.economy.response.EconomySubscriber;
+import me.lokka30.treasury.api.economy.response.EconomyException;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
@@ -101,7 +102,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void hasPlayerAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> hasPlayerAccount(@NotNull UUID accountId);
 
     /**
      * Request an existing {@link PlayerAccount} for a user.
@@ -110,7 +111,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestPlayerAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<PlayerAccount> subscription);
+    @NotNull SimpleFuture<PlayerAccount, EconomyException> requestPlayerAccount(@NotNull UUID accountId);
 
     /**
      * Request the creation of a {@link PlayerAccount} for a user.
@@ -119,7 +120,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void createPlayerAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<PlayerAccount> subscription);
+    @NotNull SimpleFuture<PlayerAccount, EconomyException> createPlayerAccount(@NotNull UUID accountId);
 
     /**
      * Request all {@link UUID UUIDs} with associated {@link PlayerAccount PlayerAccounts}.
@@ -127,7 +128,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestPlayerAccountIds(@NotNull EconomySubscriber<Collection<UUID>> subscription);
+    @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestPlayerAccountIds();
 
     /**
      * Request whether a {@link UUID} has an associated {@link BankAccount}.
@@ -136,7 +137,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void hasBankAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> hasBankAccount(@NotNull UUID accountId);
 
     /**
      * Request an existing {@link BankAccount} for a {@link UUID}.
@@ -145,7 +146,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestBankAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<BankAccount> subscription);
+    @NotNull SimpleFuture<BankAccount, EconomyException> requestBankAccount(@NotNull UUID accountId);
 
     /**
      * Request the creation of a {@link BankAccount} for a {@link UUID}.
@@ -154,7 +155,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void createBankAccount(@NotNull UUID accountId, @NotNull EconomySubscriber<BankAccount> subscription);
+    @NotNull SimpleFuture<BankAccount, EconomyException> createBankAccount(@NotNull UUID accountId);
 
     /**
      * Request all {@link UUID UUIDs} with associated {@link BankAccount BankAccounts}.
@@ -162,7 +163,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestBankAccountIds(@NotNull EconomySubscriber<Collection<UUID>> subscription);
+    @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestBankAccountIds();
 
     /**
      * Request all {@link UUID UUIDs} for valid {@link Currency Currencies}.
@@ -170,7 +171,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestCurrencyIds(@NotNull EconomySubscriber<Collection<UUID>> subscription);
+    @NotNull SimpleFuture<Collection<UUID>, EconomyException> requestCurrencyIds();
 
     /**
      * Request all names for valid {@link Currency Currencies}.
@@ -178,7 +179,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestCurrencyNames(@NotNull EconomySubscriber<Collection<String>> subscription);
+    @NotNull SimpleFuture<Collection<String>, EconomyException> requestCurrencyNames();
 
     /**
      * Request a {@link Currency} by {@link UUID}.
@@ -187,7 +188,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestCurrency(@NotNull UUID currencyId, @NotNull EconomySubscriber<Currency> subscription);
+    @NotNull SimpleFuture<Currency, EconomyException> requestCurrency(@NotNull UUID currencyId);
 
     /**
      * Request a {@link Currency} by name.
@@ -196,7 +197,7 @@ public interface EconomyProvider {
      * @param subscription the {@link EconomySubscriber} accepting the resulting value
      * @since v1.0.0
      */
-    void requestCurrency(@NotNull String currencyName, @NotNull EconomySubscriber<Currency> subscription);
+    @NotNull SimpleFuture<Currency, EconomyException> requestCurrency(@NotNull String currencyName);
 
     /**
      * Get the primary or main {@link Currency} of the economy.
@@ -204,8 +205,7 @@ public interface EconomyProvider {
      * @return the primary currency
      * @since v1.0.0
      */
-    @NotNull
-    Currency getPrimaryCurrency();
+    @NotNull Currency getPrimaryCurrency();
 
     /**
      * Get the {@link UUID} of the primary or main {@link Currency} of the economy.
@@ -213,8 +213,7 @@ public interface EconomyProvider {
      * @return the {@code UUID} identifying the primary currency
      * @since v1.0.0
      */
-    @NotNull
-    default UUID getPrimaryCurrencyId() {
+    default @NotNull UUID getPrimaryCurrencyId() {
         return getPrimaryCurrency().getCurrencyId();
     }
 

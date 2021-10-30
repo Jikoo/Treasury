@@ -1,14 +1,16 @@
 package me.lokka30.treasury.plugin.command.treasury.subcommand.migrate;
 
+import me.lokka30.treasury.api.core.util.SimpleFuture;
 import me.lokka30.treasury.api.economy.EconomyProvider;
 import me.lokka30.treasury.api.economy.account.PlayerAccount;
-import me.lokka30.treasury.api.economy.response.EconomySubscriber;
+import me.lokka30.treasury.api.economy.response.EconomyException;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 class PlayerAccountMigrator implements AccountMigrator<PlayerAccount> {
 
@@ -28,22 +30,22 @@ class PlayerAccountMigrator implements AccountMigrator<PlayerAccount> {
     }
 
     @Override
-    public @NotNull BiConsumer<@NotNull EconomyProvider, @NotNull EconomySubscriber<Collection<UUID>>> requestAccountIds() {
+    public @NotNull Function<@NotNull EconomyProvider, @NotNull SimpleFuture<Collection<UUID>, EconomyException>> requestAccountIds() {
         return EconomyProvider::requestPlayerAccountIds;
     }
 
     @Override
-    public @NotNull TriConsumer<@NotNull EconomyProvider, @NotNull UUID, @NotNull EconomySubscriber<PlayerAccount>> requestAccount() {
+    public @NotNull BiFunction<@NotNull EconomyProvider, @NotNull UUID, @NotNull SimpleFuture<PlayerAccount, EconomyException>> requestAccount() {
         return EconomyProvider::requestPlayerAccount;
     }
 
     @Override
-    public @NotNull TriConsumer<@NotNull EconomyProvider, @NotNull UUID, @NotNull EconomySubscriber<Boolean>> checkAccountExistence() {
+    public @NotNull BiFunction<@NotNull EconomyProvider, @NotNull UUID, @NotNull SimpleFuture<Boolean, EconomyException>> checkAccountExistence() {
         return EconomyProvider::hasPlayerAccount;
     }
 
     @Override
-    public @NotNull TriConsumer<@NotNull EconomyProvider, @NotNull UUID, @NotNull EconomySubscriber<PlayerAccount>> createAccount() {
+    public @NotNull BiFunction<@NotNull EconomyProvider, @NotNull UUID, @NotNull SimpleFuture<PlayerAccount, EconomyException>> createAccount() {
         return EconomyProvider::createPlayerAccount;
     }
 

@@ -12,11 +12,12 @@
 
 package me.lokka30.treasury.api.economy.account;
 
+import me.lokka30.treasury.api.core.util.SimpleFuture;
 import me.lokka30.treasury.api.economy.EconomyProvider;
 import me.lokka30.treasury.api.economy.currency.Currency;
 import me.lokka30.treasury.api.economy.response.EconomyException;
-import me.lokka30.treasury.api.economy.response.EconomySubscriber;
 import org.jetbrains.annotations.NotNull;
+
 import java.util.UUID;
 
 /**
@@ -52,7 +53,7 @@ public interface Account {
      * @see Account#setBalance(double, Currency, EconomySubscriber)
      * @since v1.0.0
      */
-    void requestBalance(@NotNull Currency currency, @NotNull EconomySubscriber<Double> subscription);
+    @NotNull SimpleFuture<Double, EconomyException> requestBalance(@NotNull Currency currency);
 
     /**
      * Set the balance of the {@code Account}.
@@ -66,7 +67,7 @@ public interface Account {
      * @see Account#requestBalance(Currency, EconomySubscriber)
      * @since v1.0.0
      */
-    void setBalance(double amount, @NotNull Currency currency, @NotNull EconomySubscriber<Double> subscription);
+    @NotNull SimpleFuture<Double, EconomyException> setBalance(double amount, @NotNull Currency currency);
 
     /**
      * Withdraw an amount from the {@code Account} balance.
@@ -80,7 +81,7 @@ public interface Account {
      * @see Account#setBalance(double, Currency, EconomySubscriber)
      * @since v1.0.0
      */
-    void withdrawBalance(double amount, @NotNull Currency currency, @NotNull EconomySubscriber<Double> subscription);
+    @NotNull SimpleFuture<Double, EconomyException> withdrawBalance(double amount, @NotNull Currency currency);
 
     /**
      * Deposit an amount into the {@code Account} balance.
@@ -94,7 +95,7 @@ public interface Account {
      * @see Account#setBalance(double, Currency, EconomySubscriber)
      * @since v1.0.0
      */
-    void depositBalance(double amount, @NotNull Currency currency, @NotNull EconomySubscriber<Double> subscription);
+    @NotNull SimpleFuture<Double, EconomyException> depositBalance(double amount, @NotNull Currency currency);
 
     /**
      * Reset the {@code Account} balance to its starting amount.
@@ -108,19 +109,8 @@ public interface Account {
      * @see Account#setBalance(double, Currency, EconomySubscriber)
      * @since v1.0.0
      */
-    default void resetBalance(@NotNull Currency currency, @NotNull EconomySubscriber<Double> subscription) {
-        setBalance(0.0d, currency, new EconomySubscriber<Double>() {
-                @Override
-                public void succeed(@NotNull Double value) {
-                    subscription.succeed(0.0d);
-                }
-
-                @Override
-                public void fail(@NotNull EconomyException exception) {
-                    subscription.fail(exception);
-                }
-            }
-        );
+    default @NotNull SimpleFuture<Double, EconomyException> resetBalance(@NotNull Currency currency) {
+        return setBalance(0.0d, currency).map(value -> 0.0d);
     }
 
     /**
@@ -135,19 +125,8 @@ public interface Account {
      * @see Account#requestBalance(Currency, EconomySubscriber)
      * @since v1.0.0
      */
-    default void canAfford(double amount, @NotNull Currency currency, @NotNull EconomySubscriber<Boolean> subscription) {
-        requestBalance(currency, new EconomySubscriber<Double>() {
-                @Override
-                public void succeed(@NotNull Double value) {
-                    subscription.succeed(value >= amount);
-                }
-
-                @Override
-                public void fail(@NotNull EconomyException exception) {
-                    subscription.fail(exception);
-                }
-            }
-        );
+    default @NotNull SimpleFuture<Boolean, EconomyException> canAfford(double amount, @NotNull Currency currency) {
+        return requestBalance(currency).map(value -> value >= amount);
     }
 
     /**
@@ -159,6 +138,6 @@ public interface Account {
      * @param subscription the {@link EconomySubscriber} accepting whether deletion occurred successfully
      * @since v1.0.0
      */
-    void deleteAccount(@NotNull EconomySubscriber<Boolean> subscription);
+    @NotNull SimpleFuture<Boolean, EconomyException> deleteAccount();
 
 }
